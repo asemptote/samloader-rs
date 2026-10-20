@@ -1514,7 +1514,6 @@ dependencies = [
  "aes",
  "ecb",
  "fast-md5",
- "memmap2",
  "reqwest",
  "roxmltree",
  "thiserror",
