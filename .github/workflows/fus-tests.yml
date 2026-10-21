@@ -1,0 +1,33 @@
+name: fus tests
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2025
+            build: true
+          - runner: windows-11-arm
+            build: true
+          - runner: macos-26
+            build: true
+          - runner: ubuntu-24.04
+            build: false
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - run: rustup update
+      - run: cargo test -p samloader-fus --locked
+      - if: matrix.build
+        run: cargo build -p samloader --release --locked
