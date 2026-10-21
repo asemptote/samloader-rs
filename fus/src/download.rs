@@ -1134,4 +1134,37 @@ mod tests {
         std::fs::remove_file(&path).unwrap();
         assert_eq!(parsed.bitfield, vec![0b01]);
     }
+
+    #[test]
+    fn test_positioned_io_round_trip() {
+        let path = std::env::temp_dir().join(format!("samloader-pio-{}.bin", std::process::id()));
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .unwrap();
+
+        // Out of order and past the end of the file, as concurrent workers write.
+        let big = vec![0xAB; 3 * 1024 * 1024 + 7];
+        write_at(&file, b"world", 1_000_005).unwrap();
+        write_at(&file, b"hello", 1_000_000).unwrap();
+        write_at(&file, &big, 2_000_000).unwrap();
+
+        let mut words = [0u8; 10];
+        read_at(&file, &mut words, 1_000_000).unwrap();
+        let mut gap = [0xFFu8; 16];
+        read_at(&file, &mut gap, 500).unwrap();
+        let mut back = vec![0u8; big.len()];
+        read_at(&file, &mut back, 2_000_000).unwrap();
+        let end = 2_000_000 + big.len() as u64;
+        let past_end = read_at(&file, &mut [0u8; 4], end - 2).unwrap_err();
+        std::fs::remove_file(&path).unwrap();
+
+        assert_eq!(&words, b"helloworld");
+        assert_eq!(gap, [0u8; 16]);
+        assert!(back == big);
+        assert_eq!(past_end.kind(), std::io::ErrorKind::UnexpectedEof);
+    }
 }
